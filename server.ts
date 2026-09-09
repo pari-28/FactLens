@@ -18,7 +18,7 @@ import { AnalysisResponse, DocumentMetadata, ExtractedFact, DocumentPage } from 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Enable CORS for all routes (ensures seamless operation in AI Studio iframes and preview domains)
 app.use(
