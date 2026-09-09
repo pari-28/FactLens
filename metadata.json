@@ -1,0 +1,7 @@
+{
+  "name": "FactLens",
+  "description": "Fact Knowledge Layer analyzing factual information, page-level evidence, and cross-document reconciliation across multiple PDFs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
