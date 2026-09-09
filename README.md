@@ -177,6 +177,144 @@ The schema is deliberately **not tied to any particular company, metric, currenc
 
 ---
 
+# What I Implemented
+
+I implemented FactLens as a hybrid document-verification pipeline rather than a simple LLM wrapper.
+
+### 1. Generic document ingestion
+
+The application accepts multiple PDFs directly through the UI and processes each document independently.
+
+Each document is assigned an internal document identity and its extracted pages remain associated with the source document.
+
+The implementation does not depend on:
+
+- specific filenames
+- company names
+- predefined metrics
+- predefined numerical values
+- fixed reporting periods
+- a fixed number of pages
+- the starter PDF structure
+
+This allows the same pipeline to process new documents without changing the application logic.
+
+### 2. Source-grounded fact representation
+
+I introduced a structured fact representation that keeps the extracted claim connected to its source evidence.
+
+A fact can retain:
+
+```text
+Document
+Page
+Evidence
+Entity / Subject
+Concept / Metric
+Value
+Unit
+Currency
+Normalized Value
+Period
+Period Type
+Scope
+Reporting / Measurement Basis
+Confidence
+Qualifiers
+```
+
+Missing information is preserved as unknown rather than being fabricated.
+
+### 3. Hybrid extraction strategy
+
+The primary path uses AI-assisted extraction for semantic understanding.
+
+I also implemented a deterministic fallback path for cases where the external AI service is unavailable.
+
+This means an API failure does not automatically terminate the entire document-processing workflow.
+
+The UI explicitly indicates when fallback extraction is being used.
+
+### 4. Deterministic normalization
+
+I implemented normalization outside the LLM wherever the operation can be reliably performed through code.
+
+This includes:
+
+- numerical parsing
+- scale conversion
+- unit normalization
+- currency representation
+- percentage handling
+- period normalization
+- variance calculations
+
+The system retains the original value as well as the normalized representation so that transformations can be audited.
+
+### 5. Cross-document semantic matching
+
+Fact matching is separated from relationship classification.
+
+Potentially related facts are identified based on their underlying meaning rather than requiring identical metric names.
+
+For example, two documents may describe the same concept using different wording.
+
+The system then evaluates their context before deciding how the facts relate.
+
+### 6. Context-aware relationship classification
+
+I implemented deterministic comparison logic that evaluates contextual dimensions before declaring a contradiction.
+
+The comparison considers available information such as:
+
+- metric/concept
+- period
+- period type
+- scope
+- geography
+- unit
+- currency
+- reporting basis
+- operational basis
+- actual vs forecast/target
+- other explicit qualifiers
+
+This prevents a simple numerical difference from automatically becoming a contradiction.
+
+### 7. Evidence-first UI
+
+The UI exposes the reasoning behind a relationship instead of displaying only a label.
+
+For each relationship, the user can inspect:
+
+- source documents
+- page references
+- original values
+- normalized values
+- evidence quotes
+- contextual differences
+- comparison details
+- final classification
+- explanation
+
+This makes the result auditable rather than a black-box prediction.
+
+### 8. Defensive handling of incomplete data
+
+Real-world documents do not always contain every piece of metadata.
+
+The implementation therefore uses defensive handling for optional fields and avoids assuming that every document contains the same structure.
+
+This is particularly important for arbitrary PDFs where:
+
+- periods may be missing,
+- units may be implicit,
+- scope may not be stated,
+- facts may be qualitative,
+- or extraction may be incomplete.
+
+---
+
 # Source Grounding
 
 Source evidence is retained as part of the fact rather than being treated as an optional UI detail.
@@ -469,18 +607,15 @@ This separation provides a balance between the flexibility of AI and the predict
 
 ---
 
-# AI Failure Handling
+# Failure Handling
 
-An external AI model introduces operational failure modes such as:
+External AI services can experience temporary failures, rate limits, timeouts, or unavailable models.
 
-- API quota exhaustion
-- Rate limits
-- Request timeouts
-- Temporary model errors
-- Network failures
-- Invalid model responses
+FactLens handles this failure mode explicitly. When AI-assisted extraction is unavailable, the application can transition to its deterministic extraction path where applicable and clearly communicates the extraction mode to the user.
 
-FactLens therefore includes a deterministic fallback extraction path.
+This prevents an external service failure from silently producing misleading results.
+
+The fallback is designed as a resilience mechanism rather than a replacement for semantic extraction.
 
 The intended behavior is:
 
@@ -513,17 +648,6 @@ This makes the failure mode visible to the user and allows the rest of the verif
 
 ---
 
-# Why a Fallback Exists
-
-The fallback is not intended to replace semantic AI extraction.
-
-Its purpose is resilience.
-
-If an external model becomes unavailable during evaluation, the application should still demonstrate the underlying verification architecture rather than simply crashing.
-
-The trade-off is that deterministic extraction generally has less semantic flexibility than an LLM and may not identify every fact in highly complex or ambiguous documents.
-
----
 
 # Handling Model Output
 
